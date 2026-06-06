@@ -1,0 +1,57 @@
+{
+  "auditDatabase": "_migration_audit",
+  "environments": {
+    "dev": {
+      "databases": {
+        "dev_users": [
+          "users"
+        ],
+        "dev_teams": [
+          "teams"
+        ],
+        "dev": [],
+        "backup": [],
+        "roles": []
+      }
+    },
+    "test": {
+      "databases": {
+        "test_users": [
+          "users"
+        ],
+        "test_teams": [
+          "teams"
+        ],
+        "test": [],
+        "backup": [],
+        "roles": []
+      }
+    },
+    "uat": {
+      "databases": {
+        "uat_users": [
+          "users"
+        ],
+        "uat_teams": [
+          "teams"
+        ],
+        "uat": [],
+        "backup": [],
+        "roles": []
+      }
+    },
+    "prod": {
+      "databases": {
+        "prod_users": [
+          "users"
+        ],
+        "prod_teams": [
+          "teams"
+        ],
+        "prod": [],
+        "backup": [],
+        "roles": []
+      }
+    }
+  }
+}
