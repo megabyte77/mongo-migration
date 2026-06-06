@@ -1,5 +1,17 @@
-import { MongoClient } from 'mongodb';
-import { AppConfig, MigrationLogEntry, RunnerOptions, MigrationHelpers } from './types';
+import {
+  MongoClient,
+  ObjectId,
+  Long,
+  Int32,
+  Double,
+  Decimal128,
+  Binary,
+  UUID,
+  Timestamp,
+  MinKey,
+  MaxKey,
+} from 'mongodb';
+import { MigrationLogEntry, RunnerOptions, MigrationHelpers } from './types';
 import { loadConfig, validateEnvironment, getMongoUri, getPipelineContext } from './config';
 import { scanMigrations } from './scanner';
 import { validateMigration, validateTimestamp } from './validator';
@@ -8,6 +20,26 @@ import { AuditLog } from './auditLog';
 import { createDryRunProxy } from './explainProxy';
 import { batchUpdate, batchDelete } from './batchRunner';
 import { logger } from './logger';
+
+/**
+ * Single source-of-truth for what migrations see as their `helpers` argument.
+ * Includes batch utilities + every common BSON type, so migration authors
+ * never need to `require('mongodb')`.
+ */
+const MIGRATION_HELPERS: MigrationHelpers = {
+  batchUpdate,
+  batchDelete,
+  ObjectId,
+  Long,
+  Int32,
+  Double,
+  Decimal128,
+  Binary,
+  UUID,
+  Timestamp,
+  MinKey,
+  MaxKey,
+};
 
 /**
  * Core migration runner.
@@ -93,8 +125,8 @@ export async function runMigrations(options: RunnerOptions): Promise<void> {
       logger.separator();
       logger.info(`Processing: ${disc.filename}`);
 
-      // ── 6a. Idempotency check ──
-      const existingLog = await auditLog.findById(migration.id);
+      // ── 6a. Idempotency check — only successful runs count as "applied" ──
+      const existingLog = await auditLog.findSuccessfulById(migration.id);
 
       if (existingLog) {
         // ── 6b. Tamper protection ──
@@ -124,20 +156,14 @@ export async function runMigrations(options: RunnerOptions): Promise<void> {
           ? createDryRunProxy(client.db(migration.db))
           : client.db(migration.db);
 
-        // Build helpers
-        const helpers: MigrationHelpers = {
-          batchUpdate,
-          batchDelete,
-        };
-
         logger.info(
           dryRun
-            ? ` Dry-running: ${disc.filename}`
-            : ` Applying: ${disc.filename}`
+            ? `🔍 Dry-running: ${disc.filename}`
+            : `🚀 Applying: ${disc.filename}`
         );
 
-        // Execute the up() function
-        await migration.up(targetDb, helpers);
+        // Execute the up() function with shared helpers
+        await migration.up(targetDb, MIGRATION_HELPERS);
 
         const finishedAt = new Date();
         const durationMs = finishedAt.getTime() - startedAt.getTime();
