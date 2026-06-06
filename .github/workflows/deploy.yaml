@@ -1,0 +1,58 @@
+name: Deploy Migrations
+
+# Manual-only — triggered from Actions tab. Pick the target environment.
+# Each environment must be configured in repo Settings → Environments
+# with its own MONGO_URI secret (and optional protection rules for prod).
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - test
+          - uat
+          - prod
+
+permissions:
+  contents: read
+
+# Prevent two deploys to the same environment running concurrently.
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}   # ties to GH Environment + secrets + approvals
+    env:
+      MONGO_URI: ${{ secrets.MONGO_URI }}
+      MIGRATION_ENV: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: runner/package-lock.json
+
+      - name: Install runner dependencies
+        working-directory: runner
+        run: npm ci
+
+      - name: Build runner
+        working-directory: runner
+        run: npm run build
+
+      - name: Offline validation (fail-fast)
+        working-directory: runner
+        run: npm run migrate -- --validate --env=${{ inputs.environment }}
+
+      - name: Apply migrations
+        working-directory: runner
+        run: npm run migrate -- --env=${{ inputs.environment }}
