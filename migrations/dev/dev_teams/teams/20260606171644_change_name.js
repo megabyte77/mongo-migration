@@ -22,7 +22,7 @@ module.exports = {
 
     await db.collection('teams').updateOne(
       {
-        _id: new helpers.ObjectId("694cf12ab931b16d1444e6d6")
+        _id: new helpers.ObjectId("694cf12ab931b16d1444e6dc")
       },
       {
         $set: {
