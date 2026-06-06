@@ -1,0 +1,78 @@
+name: PR Validation
+
+# Runs automatically on every PR.
+# NO data is written. Only syntax, lint, schema, and dry-run against DEV Atlas.
+on:
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  syntax-and-lint:
+    name: Syntax & Lint Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: runner/package-lock.json
+
+      - name: Install runner dependencies
+        working-directory: runner
+        run: npm ci
+
+      - name: Build runner
+        working-directory: runner
+        run: npm run build
+
+      - name: Syntax check (node --check)
+        run: |
+          echo "── Checking JS syntax of all migration files ──"
+          find migrations -name "*.js" -not -path "*/node_modules/*" -print0 \
+            | xargs -0 -r -I {} node --check {}
+
+      - name: ESLint quality check
+        working-directory: runner
+        run: npm run lint
+
+  schema-and-dry-run:
+    name: Schema Validation & Dry-Run (DEV)
+    runs-on: ubuntu-latest
+    needs: syntax-and-lint
+    environment: dev    # uses DEV secrets/protection rules
+    env:
+      MONGO_URI: ${{ secrets.MONGO_URI }}
+      MIGRATION_ENV: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: runner/package-lock.json
+
+      - name: Install runner dependencies
+        working-directory: runner
+        run: npm ci
+
+      - name: Build runner
+        working-directory: runner
+        run: npm run build
+
+      - name: Offline schema + naming + env-guard validation
+        working-directory: runner
+        run: npm run migrate -- --validate --env=dev
+
+      - name: Dry-run explain plans (no writes)
+        working-directory: runner
+        run: npm run migrate -- --dry-run --env=dev
