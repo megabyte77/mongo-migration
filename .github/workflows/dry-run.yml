@@ -1,0 +1,56 @@
+name: Dry-Run Migrations
+
+# Manual pre-deployment verification — runs .explain() against real Atlas
+# data without writing anything. Useful for TEST/UAT/PROD sanity checks.
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - test
+          - uat
+          - prod
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dry-run-${{ inputs.environment }}
+  cancel-in-progress: true
+
+jobs:
+  dry-run:
+    name: Dry-Run on ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    env:
+      MONGO_URI: ${{ secrets.MONGO_URI }}
+      MIGRATION_ENV: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: runner/package-lock.json
+
+      - name: Install runner dependencies
+        working-directory: runner
+        run: npm ci
+
+      - name: Build runner
+        working-directory: runner
+        run: npm run build
+
+      - name: Offline validation
+        working-directory: runner
+        run: npm run migrate -- --validate --env=${{ inputs.environment }}
+
+      - name: Dry-run explain plans
+        working-directory: runner
+        run: npm run migrate -- --dry-run --env=${{ inputs.environment }}
