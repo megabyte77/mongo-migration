@@ -1,0 +1,32 @@
+{
+  "env": {
+    "node": true,
+    "commonjs": true,
+    "es2020": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 2020
+  },
+  "rules": {
+    "no-eval": "error",
+    "no-implied-eval": "error",
+    "no-new-func": "error",
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "no-var": "error",
+    "prefer-const": "warn",
+    "no-console": "warn",
+    "eqeqeq": ["error", "always"],
+    "curly": ["error", "all"],
+    "no-throw-literal": "error",
+    "no-return-await": "warn",
+    "require-await": "warn"
+  },
+  "overrides": [
+    {
+      "files": ["*.js"],
+      "rules": {
+        "strict": "off"
+      }
+    }
+  ]
+}
